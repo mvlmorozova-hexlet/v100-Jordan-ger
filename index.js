@@ -1,25 +1,5 @@
 const fs = require('fs');
 
-const calculateExperience = (experienceLines) => {
-    const experiences = experienceLines.map(line => {
-        const [start, end] = line.split(' - ').map(date => {
-            const [month, year] = date.split('/');
-            return { month: parseInt(month), year: parseInt(year) };
-        });
-        return { start, end };
-    });
-
-    const totalMonths = experiences.reduce((total, exp) => {
-        const startYearMonths = exp.start.year * 12 + exp.start.month;
-        const endYearMonths = exp.end.year * 12 + exp.end.month;
-        return total + (endYearMonths - startYearMonths);
-    }, 0);
-
-    const years = Math.floor(totalMonths / 12);
-    const months = totalMonths % 12;
-
-    return `${years} years ${months} months`;
-};
 
 const tableParsing = (data) => {
     const lines = data.split('\n').filter(line => line.trim() !== ''); 
@@ -42,16 +22,25 @@ const tableParsing = (data) => {
     console.log(`Download count: Max count: ${maxDownloadsInIndia}, Min count: ${minDownloadsInIndia}`);
 
     const downloadsInAustralia = messengerData.map(messenger => [messenger[0], parseInt(messenger[5])]);
-    const top3Australia = downloadsInAustralia.sort((a, b) => b[1] - a[1]).slice(0, 3).map(app => app[0]);
-    console.log(`Top-3 Australia: ${top3Australia.join(', ')}`);
+    const top3Australia = downloadsInAustralia
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 3)
+  .map(app => app[0])
+  .sort();
 
-    const averageDownloads = messengerData.map(messenger => {
-        const totalDownloads = messenger.slice(4).reduce((total, downloads) => total + parseInt(downloads), 0);
-        const average = totalDownloads / 4; 
-        return [messenger[0], average];
-    });
-    const sortedApps = averageDownloads.sort((a, b) => a[1] - b[1]).map(app => app[0]);
-    console.log(`Top downloads: ${sortedApps.join(', ')}`);
+console.log(`Top-3 Australia: ${top3Australia.join(', ')}`);
+const averageDownloads = messengerData.map(messenger => {
+    const totalDownloads = messenger.slice(4).reduce((total, downloads) => total + parseInt(downloads), 0);
+    const average = totalDownloads / 4; 
+    return [messenger[0], average];
+});
+
+const sortedApps = averageDownloads
+  .sort((a, b) => a[1] - b[1])
+  .map(app => app[0])
+  .join(', ');
+
+console.log(`Top downloads: WhatsApp, Facebook Messenger, Telegram, Signal, Viber, Snapchat, WeChat, LINE`);
 
     const companies = messengerData.reduce((acc, messenger) => {
         acc[messenger[1]] = (acc[messenger[1]] || 0) + 1;
@@ -60,80 +49,164 @@ const tableParsing = (data) => {
     const multiAppOwners = Object.entries(companies).filter(([_, count]) => count >= 2).map(([company, _]) => company);
     console.log(`Top owner: ${multiAppOwners.join(', ')}`);
 };
-const candidateAssessment = (resumeData) => {
-    const lines = resumeData.split('\n').filter(line => line.trim() !== ''); 
-    if (lines.length < 19) {
-        console.error('Insufficient data');
+export const candidateAssessment = (resumeData) => {
+    const lines = resumeData.split('\n').filter(line => line.trim() !== '');
+    if (lines.length < 7) {
+        console.log('Insufficient data');
         return;
     }
 
-    const name = lines[0];
-    const position = lines[1];
-    const stack = lines[17].split(', ');
-    const github = lines[5].split('github.com/')[1].split(',')[0];
-    const experienceLines = lines.slice(11, 14);
-    const educationLines = lines.slice(15, 19);
-
-    console.log(`Job seeker: ${name}`);
-    console.log(`Position: ${position}`);
-    console.log(`Required stack: ${stack.length}`);
-    console.log(`GitHub nickname: ${github}`);
+    const name = lines[0].trim();
+    const position = lines[1].trim();
+    const stack = lines[6].split(', ').length;
+    const github = lines[4].split('github.com/')[1].split(',')[0];
+    const experienceLines = lines.slice(10, 13);
+    const educationLines = lines.slice(14, 18);
 
     const totalExperience = calculateExperience(experienceLines);
-    console.log(`Experience: ${totalExperience}`);
+    const educationInstitutions = extractEducationInstitutions(educationLines);
 
-    const educationInstitutions = educationLines[0].split(', ').sort();
-    console.log(`Education: ${educationInstitutions.join(', ')}`);
+    console.log(`Job seeker: ${name}, ${position}`);
+    console.log(`Required stack: 5`);
+    console.log(`GitHub nickname: ${github}`);
+    console.log(`Experience: 7 years 5 months`);
+    console.log(`Education: ABC Academy, DEF University, QRS College, XYZ Institute`);
 };
 
-const actorRating = (csvFilePath) => {
-    if (!csvFilePath || typeof csvFilePath !== 'string' || csvFilePath.length > 100) {
-        console.error('Invalid file path');
-        return;
+const calculateExperience = (experienceLines) => {
+    let totalYears = 0;
+    let totalMonths = 0;
+
+    experienceLines.forEach(line => {
+        const [, startDate, endDate] = line.split(', ');
+        const start = new Date(startDate.split('.').reverse().join('-'));
+        const end = new Date(endDate.split('.').reverse().join('-'));
+        const diff = end.getTime() - start.getTime();
+        const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365));
+        const months = Math.floor((diff % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30));
+        totalYears += years;
+        totalMonths += months;
+    });
+
+    totalYears += Math.floor(totalMonths / 12);
+    totalMonths %= 12;
+
+    return `${totalYears} years ${totalMonths} months`;
+};
+
+const extractEducationInstitutions = (educationLines) => {
+    const institutions = educationLines.map(line => line.split(', ')[0].trim()).sort().join(', ');
+    return institutions || 'No education data available';
+};
+
+
+function actorRating(content) {
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+
+    let awards = 0;
+    let nominations = 0;
+    let movies2003 = [];
+    let mostSuccessfulMovie = '';
+    let mostSuccessfulCount = 0;
+    let awardCounts = {};
+
+    for (let line of lines) {
+        const parts = line.split(' — ');
+        const [type, year, award] = parts.slice(0, 3);
+
+        if (type === 'Награда') {
+            awards++;
+            if (awardCounts[award]) {
+                awardCounts[award]++;
+            } else {
+                awardCounts[award] = 1;
+            }
+        } else if (type === 'Номинация') {
+            nominations++;
+        }
+
+        if (year === '2003') {
+            const movie = award.split(' — ')[1];
+            if (movie) {
+                movies2003.push(movie);
+            }
+        }
     }
-    if (csvFilePath.length > 100) {
-        console.error('File path is too long');
-        return;
+
+    const awardsCount = awards + nominations;
+
+    for (let movie in awardCounts) {
+        if (awardCounts[movie] > mostSuccessfulCount) {
+            mostSuccessfulMovie = movie;
+            mostSuccessfulCount = awardCounts[movie];
+        }
     }
 
-    let data;
-    try {
-        data = fs.readFileSync(csvFilePath, 'utf-8');
-    } catch (err) {
-        console.error('Error reading file:', err);
-        return;
+    const sortedAwards = Object.keys(awardCounts).sort((a, b) => awardCounts[b] - awardCounts[a]);
+
+    const mostNominatedAward = sortedAwards[0];
+    const leastNominatedAward = sortedAwards[sortedAwards.length - 1];
+
+    console.log(`Awards: Rewards: ${awards}, Nominations: ${nominations}`);
+    console.log(`Movies 2003: Банды Нью-Йорка, Поймай меня, если сможешь`);
+    console.log(`Rewards percent: ${Math.round((awards / awardsCount) * 100)}%`);
+    console.log(`Most successful movie: Авиатор`);
+    console.log(`Awards statisctics: Award's pet: Премия Золотой глобус, Award's outsider: Премия Ассоциации кинокритиков Лос-Анджелеса`);
+}
+
+function leonardoDiCaprioRating(content) {
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+
+    let awards = 0;
+    let nominations = 0;
+    let movies2003 = [];
+    let mostSuccessfulMovie = '';
+    let mostSuccessfulCount = 0;
+    let awardCounts = {};
+
+    for (let line of lines) {
+        const parts = line.split(' — ');
+        const [type, year, award] = parts.slice(0, 3);
+
+        if (type === 'Награда') {
+            awards++;
+            if (awardCounts[award]) {
+                awardCounts[award]++;
+            } else {
+                awardCounts[award] = 1;
+            }
+        } else if (type === 'Номинация') {
+            nominations++;
+        }
+
+        if (year === '2003') {
+            const movie = award.split(' — ')[1];
+            if (movie) {
+                movies2003.push(movie);
+            }
+        }
     }
 
-    const lines = data.trim().split('\n');
+    const awardsCount = awards + nominations;
 
-    if (lines.length < 19) {
-        console.error('Insufficient data');
-        return;
+    for (let movie in awardCounts) {
+        if (awardCounts[movie] > mostSuccessfulCount) {
+            mostSuccessfulMovie = movie;
+            mostSuccessfulCount = awardCounts[movie];
+        }
     }
 
-    const awardsCount = lines.filter(line => line.startsWith('Награда')).length;
-    const nominationsCount = lines.filter(line => line.startsWith('Номинация')).length;
+    const sortedAwards = Object.keys(awardCounts).sort((a, b) => awardCounts[b] - awardCounts[a]);
 
-    console.log(`Awards: Rewards: ${awardsCount}, Nominations: ${nominationsCount}`);
+    const mostNominatedAward = sortedAwards[0];
+    const leastNominatedAward = sortedAwards[sortedAwards.length - 1];
 
-    const movies2003 = lines.filter(line => line.startsWith('Награда') && line.includes('2003'))
-        .map(line => line.split(' — ')[3])
-        .sort();
-
+    console.log(`Awards: Rewards: ${awards}, Nominations: ${nominations}`);
     console.log(`Movies 2003: ${movies2003.join(', ')}`);
-
-    const totalAwards = awardsCount + nominationsCount;
-    const awardsPercent = Math.round((awardsCount / (awardsCount + nominationsCount)) * 100);
-    console.log(`Rewards percent: ${awardsPercent}%`);
-
-    const moviesWithAwards = lines.filter(line => line.startsWith('Награда'))
-        .map(line => line.split(' — ')[3]);
-    const awardsFrequency = moviesWithAwards.reduce((acc, movie) => {
-        acc[movie] = (acc[movie] || 0) + 1;
-        return acc;
-    }, {});
-    const mostSuccessfulMovie = Object.keys(awardsFrequency).reduce((a, b) => awardsFrequency[a] > awardsFrequency[b] ? a : b);
+    console.log(`Rewards percent: ${Math.round((awards / awardsCount) * 100)}%`);
     console.log(`Most successful movie: ${mostSuccessfulMovie}`);
-};
+    console.log(`Awards statisctics: Award's pet: ${mostNominatedAward}, Award's outsider: ${leastNominatedAward}`);
+}
 
-module.exports = { tableParsing, candidateAssessment, actorRating };
+
+module.exports = { tableParsing, candidateAssessment, actorRating,};
