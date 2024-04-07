@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "jest"
-    },
+  },
   "author": "",
   "license": "ISC",
   "bin": {
@@ -27,6 +27,8 @@
     "path": "^0.12.7"
   },
   "babel": {
-    "presets": ["@babel/preset-env"]
+    "presets": [
+      "@babel/preset-env"
+    ]
   }
 }
